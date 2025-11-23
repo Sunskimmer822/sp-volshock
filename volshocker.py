@@ -87,6 +87,12 @@ for i in range(len(sys.argv)):
         if duration<0: duration = 0
         if duration>15: duration = 15
         env.trigger_duration = duration
+    elif arg == "-u" or arg == "--username":
+        env.username = next_arg
+    elif arg == "-a" or arg == "--api-key":
+        env.api_key = next_arg
+    elif arg == "-c" or arg == "--share-code":
+        env.share_code = next_arg
 
 #sanitiziation
 needs_help = False
@@ -112,13 +118,24 @@ except ValueError:
 
 #initialize shocker
 
+print("Initializing Shocker. This may take a moment.")
+
 api = PiShockAPI(env.username,env.api_key)
 shocker = api.shocker(env.share_code)
-
-shocker_info = shocker.info()
-shocker_max_intensity = shocker_info.max_intensity
-shocker_max_duration = shocker_info.max_duration
 shocker.beep(.5)
+
+print("Shocker Initialized. Gathering shocker data. This may take a moment.")
+
+try:
+    shocker_info = shocker.info()
+    shocker_max_intensity = shocker_info.max_intensity
+    shocker_max_duration = shocker_info.max_duration
+except:
+    shocker_max_intensity = 100
+    shocker_max_duration = 15
+
+print("Shocker data gathered. Initializing audio engine.")
+
 
 p = pyaudio.PyAudio()
 WIDTH = 2
@@ -143,15 +160,17 @@ stream = p.open(format=p.get_format_from_width(WIDTH),
 
 stream.start_stream()
 
+print("Audio engine initialized. Beginning calibration.")
+
 
 calibration_steps = 20
-thrown_steps = 4
+thrown_steps = 2
 cur_calibration_step = 0
 
 calibration_data = []
 
 baseline = -40
-threshold = 35
+threshold = 30
 
 measurement_delay = 0.3
 
@@ -161,6 +180,7 @@ while stream.is_active():
         #loop broke! I'm out of here!
         print("Keyboard interrupt caught. Exiting shocker loop.")
         break
+
     if not rms<sys.float_info.min:
         db = 20 * log10(rms)
     else:
@@ -174,12 +194,14 @@ while stream.is_active():
         for value in calibration_data:
             data_sum += value
         baseline = data_sum/len(calibration_data)
-    elif (cur_calibration_step!=-1) and (cur_calibration_step<=calibration_steps+thrown_steps):
+        print(f"Baseline calibrated at {baseline}db with {threshold}db threshold.")
+    elif (cur_calibration_step!=-1) and (cur_calibration_step<calibration_steps+thrown_steps):
         calibration_data.append(db)
         print(f"Calibration point {cur_calibration_step}: {db}db")
         cur_calibration_step+=1
     else:
         #check for shock
+        print(f"db-baseline is {db-baseline}")
         if db-baseline>threshold:
             #we shock here
             print(f"{"SHOCKING" if env.shock_enabled else "VIBRATING"} at {env.trigger_power}% power for {env.trigger_duration}s due to {db-baseline-threshold:2.2f} over threshold.")
@@ -188,16 +210,24 @@ while stream.is_active():
                 shocker.shock(intensity=env.trigger_power,duration=env.trigger_duration)
             else:
                 shocker.vibrate(intensity=env.trigger_power,duration=env.trigger_duration)
+
+            if env.disable_on_trigger:
+                time.sleep(env.trigger_duration)
     # refresh every 0.3 seconds
     time.sleep(measurement_delay)
+
+print("Closing and terminating audio stream...")
 
 stream.stop_stream()
 stream.close()
 
 p.terminate()
 
+print("Audio stream closed and terminated.")
+
 shocker.beep(.5)
 
+#goodbye!!
 
 
 
