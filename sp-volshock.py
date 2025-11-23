@@ -37,6 +37,23 @@ def print_help():
         
         f"Options:\n\n"
         
+        f"   {env.helptext_color}-u, --username{env.reset_color}\n"
+        f"      Set the username to be displayed in pishock logs.\n"
+        f"      Options: String\n"
+        f"      Example: -u sunskimmer82\n\n"
+        
+        f"   {env.helptext_color}-a, --api-key{env.reset_color}\n"
+        f"      Set the pishock API key to be used for the shocker.\n"
+        f"      Find this at https://pishock.com/#/account -> Generate API Key.\n"
+        f"      Options: String\n"
+        f"      Example: -a 00000000-0000-0000-00000-000000000000\n\n"
+        
+        f"   {env.helptext_color}-s, --share-code{env.reset_color}\n"
+        f"      Set the pishock shocker share code used to control the shocker.\n"
+        f"      Find this at https://pishock.com/#/control -> Share.\n"
+        f"      Options: String\n"
+        f"      Example: -s BOOBBOOBBOOB\n\n"
+        
         f"   {env.helptext_color}-s, --enable_shock{env.reset_color}\n"
         f"      Toggle whether the shocker should shock or vibrate when triggered.\n"
         f"      Options: Boolean (True, False, T, F)\n"
@@ -53,11 +70,22 @@ def print_help():
         f"      Options: Integer [0,100]\n"
         f"      Example: -p 69\n\n"
         
+        f"   {env.helptext_color}-i, --interval{env.reset_color}\n"
+        f"      Choose the interval between audio level measurements.\n"
+        f"      Options: Float [0,inf)\n"
+        f"      Example: -i 0.3\n\n"
+        
         f"   {env.helptext_color}-d, --duration{env.reset_color}\n"
         f"      Choose the duration of the shock/vibration.\n"
         f"      If the shocker has limits, they will override this option if it is too high.\n"
         f"      Options: Float [0,15]\n"
         f"      Example: -d 2.1\n\n"
+        
+        f"   {env.helptext_color}-k, --keyboard-interrupt{env.reset_color}\n"
+        f"      Choose the key used to break out of the main loop.\n"
+        f"      You probably don't need to change this.\n"
+        f"      Options: Integer [0,249]\n"
+        f"      Example: -k 27\n\n"
         
         f"   {env.helptext_color}--help{env.reset_color}  Display this help and exit."
     )
@@ -75,7 +103,13 @@ for i in range(len(sys.argv)):
         next_arg = sys.argv[i+1]
     else:
         break
-    if arg == "-s" or arg == "--enable-shock":
+    if arg == "-u" or arg == "--username":
+        env.username = next_arg
+    elif arg == "-a" or arg == "--api-key":
+        env.api_key = next_arg
+    elif arg == "-c" or arg == "--share-code":
+        env.share_code = next_arg
+    elif arg == "-s" or arg == "--enable-shock":
         if next_arg.capitalize() == "True" or next_arg.capitalize() == "False":
             env.shock_enabled = bool(next_arg)
         elif next_arg.capitalize() == "T":
@@ -100,6 +134,10 @@ for i in range(len(sys.argv)):
         if power<0: power = 0
         if power>100: power = 1000
         env.trigger_power = power
+    elif arg == "-i" or arg == "--interval":
+        interval = float(next_arg)
+        if interval<0: interval = 0
+        env.measurement_interval = interval
     elif arg == "-d" or arg == "--duration":
         duration = float(next_arg)
         if duration<0: duration = 0
@@ -107,12 +145,6 @@ for i in range(len(sys.argv)):
         env.trigger_duration = duration
     elif arg == "-k" or arg == "--interrupt-keycode":
         env.breakout_keycode = int(next_arg)
-    elif arg == "-u" or arg == "--username":
-        env.username = next_arg
-    elif arg == "-a" or arg == "--api-key":
-        env.api_key = next_arg
-    elif arg == "-c" or arg == "--share-code":
-        env.share_code = next_arg
 
 #sanitiziation
 needs_help = False
@@ -180,11 +212,11 @@ stream = p.open(format=p.get_format_from_width(WIDTH),
 
 stream.start_stream()
 
-print("Audio engine initialized. Beginning calibration.")
+print("Audio engine initialized. Beginning calibration. Press ESC (unless changed) to exit.")
 
 
 calibration_steps = 20
-thrown_steps = 2
+thrown_steps = 2 #change this based on how many invalid steps you have. can depend. not entirely necessary, but aids accuracy.
 cur_calibration_step = 0
 
 calibration_data = []
@@ -192,7 +224,6 @@ calibration_data = []
 baseline = -40
 threshold = 30
 
-measurement_delay = 0.3
 
 while stream.is_active():
     #abort the loop by holding the break key (ESC by default)
@@ -234,7 +265,7 @@ while stream.is_active():
             if env.disable_on_trigger:
                 time.sleep(env.trigger_duration)
     # refresh every 0.3 seconds
-    time.sleep(measurement_delay)
+    time.sleep(env.measurement_interval)
 
 print("Closing and terminating audio stream...")
 

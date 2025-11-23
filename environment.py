@@ -21,11 +21,11 @@ trigger_power = 10
 #trigger duration in seconds. same between shock and vibrate. cannot go over the shocker's maximum duration.
 trigger_duration = 0.3
 
+#how long to wait between volume measurements. a lower interval will cause more timely and accurate measurements.
+measurement_interval = 0.1
 
+breakout_keycode = 27 #default: 27//ESC
 
-#somewhat more advanced! change at your own risk.
-breakout_keycode = 27 #default: ESC
-
-#boring stuff that you truly dont need to change ever
+#boring stuff that you truly dont need to change ever. no logic for changing from cli
 helptext_color = "\033[1m"
 reset_color = "\033[0m"
